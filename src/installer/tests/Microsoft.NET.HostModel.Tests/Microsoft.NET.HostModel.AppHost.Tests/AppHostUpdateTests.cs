@@ -78,6 +78,35 @@ namespace Microsoft.NET.HostModel.Tests
         [Fact]
         public void ItFailsToEmbedTooLongAppBinaryPath()
         {
+            // try to repro with longpath.csproj
+            // see where it breaks.
+            // find what bytesToWrite new limit to use
+
+
+            // using (TestDirectory testDirectory = TestDirectory.Create())
+            // {
+            //     string sourceAppHostMock = PrepareAppHostMockFile(testDirectory);
+            //     string destinationFilePath = Path.Combine(testDirectory.Path, "DestinationAppHost.exe.mock");
+            //     string appBinaryFilePath = new string('a', 1024 + 5);
+
+            //     HostWriter.CreateAppHost(
+            //         sourceAppHostMock,
+            //         destinationFilePath,
+            //         appBinaryFilePath);
+
+            //     // Assert.Throws<AppNameTooLongException>(() =>
+            //     //     HostWriter.CreateAppHost(
+            //     //         sourceAppHostMock,
+            //     //         destinationFilePath,
+            //     //         appBinaryFilePath));
+
+            //     File.Exists(destinationFilePath).Should().BeTrue();
+            // }
+        }
+        
+        [Fact]
+        public void ItFailsToEmbedTooLongAppBinaryPath()
+        {
             using (TestDirectory testDirectory = TestDirectory.Create())
             {
                 string sourceAppHostMock = PrepareAppHostMockFile(testDirectory);
