@@ -30,13 +30,13 @@ namespace Microsoft.NET.HostModel.AppHost
         /// <param name="appHostDestinationFilePath">The destination path for desired location to place, including the file name</param>
         /// <param name="appBinaryFilePath">Full path to app binary or relative path to the result apphost file</param>
         /// <param name="windowsGraphicalUserInterface">Specify whether to set the subsystem to GUI. Only valid for PE apphosts.</param>
-        /// <param name="assemblyToCopyResorcesFrom">Path to the intermediate assembly, used for copying resources to PE apphosts.</param>
+        /// <param name="assemblyToCopyResourcesFrom">Path to the intermediate assembly, used for copying resources to PE apphosts.</param>
         public static void CreateAppHost(
             string appHostSourceFilePath,
             string appHostDestinationFilePath,
             string appBinaryFilePath,
             bool windowsGraphicalUserInterface = false,
-            string assemblyToCopyResorcesFrom = null)
+            string assemblyToCopyResourcesFrom = null)
         {
             var bytesToWrite = Encoding.UTF8.GetBytes(appBinaryFilePath);
             if (bytesToWrite.Length > 1024)
@@ -74,13 +74,13 @@ namespace Microsoft.NET.HostModel.AppHost
 
             void UpdateResources()
             {
-                if (assemblyToCopyResorcesFrom != null && appHostIsPEImage)
+                if (assemblyToCopyResourcesFrom != null && appHostIsPEImage)
                 {
                     if (ResourceUpdater.IsSupportedOS())
                     {
                         // Copy resources from managed dll to the apphost
                         new ResourceUpdater(appHostDestinationFilePath)
-                            .AddResourcesFromPEImage(assemblyToCopyResorcesFrom)
+                            .AddResourcesFromPEImage(assemblyToCopyResourcesFrom)
                             .Update();
                     }
                     else
