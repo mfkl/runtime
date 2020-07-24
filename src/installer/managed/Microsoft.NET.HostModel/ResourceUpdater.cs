@@ -69,8 +69,8 @@ namespace Microsoft.NET.HostModel
                 LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE = 0x00000040,
                 LOAD_LIBRARY_AS_IMAGE_RESOURCE = 0x00000020
             }
-
-            [DllImport(nameof(Kernel32), CharSet = CharSet.Unicode, SetLastError=true)]
+        
+            [DllImport(nameof(Kernel32), CharSet = CharSet.Unicode, EntryPoint = "LoadLibraryExW", SetLastError=true)]
             public static extern IntPtr LoadLibraryEx(string lpFileName,
                                                       IntPtr hReservedNull,
                                                       LoadLibraryFlags dwFlags);
