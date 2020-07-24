@@ -76,32 +76,15 @@ namespace Microsoft.NET.HostModel.Tests
         }
 
         [Fact]
-        public void ItFailsToEmbedTooLongAppBinaryPath()
+        public void ItFailsToEmbedTooLongAppBinaryPath2222()
         {
-            // try to repro with longpath.csproj
-            // see where it breaks.
-            // find what bytesToWrite new limit to use
+            var sourceAppHostMock = @"C:\Users\Martin\.nuget\packages\microsoft.netcore.app.host.win-x64\3.1.2\runtimes\win-x64\native\apphost.exe";
+            var destinationFilePath = @"C:\Users\Martin\Projects\gr\longpath\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\obj\Debug\netcoreapp3.1\thisisaveryveryverylongpathanditkeepsgoing.exe";
+            var appBinaryFilePath = "thisisaveryveryverylongpathanditkeepsgoing.dll";
+            var assemblyToCopyResourcesFrom = @"C:\Users\Martin\Projects\gr\longpath\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\obj\Debug\netcoreapp3.1\thisisaveryveryverylongpathanditkeepsgoing.dll";
+            HostWriter.CreateAppHost(sourceAppHostMock, destinationFilePath, appBinaryFilePath, false, assemblyToCopyResourcesFrom);
 
-
-            // using (TestDirectory testDirectory = TestDirectory.Create())
-            // {
-            //     string sourceAppHostMock = PrepareAppHostMockFile(testDirectory);
-            //     string destinationFilePath = Path.Combine(testDirectory.Path, "DestinationAppHost.exe.mock");
-            //     string appBinaryFilePath = new string('a', 1024 + 5);
-
-            //     HostWriter.CreateAppHost(
-            //         sourceAppHostMock,
-            //         destinationFilePath,
-            //         appBinaryFilePath);
-
-            //     // Assert.Throws<AppNameTooLongException>(() =>
-            //     //     HostWriter.CreateAppHost(
-            //     //         sourceAppHostMock,
-            //     //         destinationFilePath,
-            //     //         appBinaryFilePath));
-
-            //     File.Exists(destinationFilePath).Should().BeTrue();
-            // }
+            File.Exists(destinationFilePath).Should().BeTrue();
         }
         
         [Fact]
@@ -113,18 +96,13 @@ namespace Microsoft.NET.HostModel.Tests
                 string destinationFilePath = Path.Combine(testDirectory.Path, "DestinationAppHost.exe.mock");
                 string appBinaryFilePath = new string('a', 1024 + 5);
 
-                HostWriter.CreateAppHost(
-                    sourceAppHostMock,
-                    destinationFilePath,
-                    appBinaryFilePath);
+                Assert.Throws<AppNameTooLongException>(() =>
+                    HostWriter.CreateAppHost(
+                        sourceAppHostMock,
+                        destinationFilePath,
+                        appBinaryFilePath));
 
-                // Assert.Throws<AppNameTooLongException>(() =>
-                //     HostWriter.CreateAppHost(
-                //         sourceAppHostMock,
-                //         destinationFilePath,
-                //         appBinaryFilePath));
-
-                File.Exists(destinationFilePath).Should().BeTrue();
+                File.Exists(destinationFilePath).Should().BeFalse();
             }
         }
 
