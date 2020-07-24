@@ -39,12 +39,11 @@ namespace Microsoft.NET.HostModel.AppHost
             string assemblyToCopyResourcesFrom = null)
         {
             var bytesToWrite = Encoding.UTF8.GetBytes(appBinaryFilePath);
-            System.Diagnostics.Debug.WriteLine($"CreateAppHost - bytesToWrite {bytesToWrite}");
             
-            // if (bytesToWrite.Length > 1024)
-            // {
-            //     throw new AppNameTooLongException(appBinaryFilePath);
-            // }
+            if (bytesToWrite.Length > 1024)
+            {
+                throw new AppNameTooLongException(appBinaryFilePath);
+            }
 
             BinaryUtils.CopyFile(appHostSourceFilePath, appHostDestinationFilePath);
 
