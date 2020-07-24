@@ -45,6 +45,9 @@ namespace Microsoft.NET.HostModel.AppHost
                 throw new AppNameTooLongException(appBinaryFilePath);
             }
 
+            appHostDestinationFilePath = @"\\?\" + appHostDestinationFilePath;
+            assemblyToCopyResourcesFrom = @"\\?\" + assemblyToCopyResourcesFrom;
+
             BinaryUtils.CopyFile(appHostSourceFilePath, appHostDestinationFilePath);
 
             bool appHostIsPEImage = false;
