@@ -95,6 +95,24 @@ namespace Microsoft.NET.HostModel.Tests
         }
 
         [Fact]
+        public void ItSucceedsToBuildLongDestinationPath()
+        {
+            var repoDir = new RepoDirectoriesProvider();
+            var longPath = $@"src\installer\tests\Assets\TestProjects\LongPathApp\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing\thisisaveryveryverylongpathanditkeepsgoing";         
+            var exe = @"obj\Debug\net50\thisisaveryveryverylongpathanditkeepsgoing.exe";
+            var dll = @"obj\Debug\net50\thisisaveryveryverylongpathanditkeepsgoing.dll";
+
+            var sourceAppHostMock = Path.Combine(repoDir.RepoRoot, @"artifacts\bin\win-x64.Debug\corehost\apphost.exe");
+            var destinationFilePath = Path.Combine(repoDir.RepoRoot, longPath, exe);
+            var appBinaryFilePath = "thisisaveryveryverylongpathanditkeepsgoing.dll";
+            var assemblyToCopyResourcesFrom = Path.Combine(repoDir.RepoRoot, longPath, dll);   
+
+            HostWriter.CreateAppHost(sourceAppHostMock, destinationFilePath, appBinaryFilePath, false, assemblyToCopyResourcesFrom);
+
+            File.Exists(destinationFilePath).Should().BeTrue();
+        }
+
+        [Fact]
         public void ItCanSetWindowsGUISubsystem()
         {
             using (TestDirectory testDirectory = TestDirectory.Create())
