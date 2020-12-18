@@ -281,6 +281,69 @@ namespace System.IO.Compression
             }
         }
 
+        [Fact]
+        public void StrictValidation()
+        {
+            var source = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
+            var codec = new (string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress)
+            {
+                "System.IO.Compression",
+				s => new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionLevel.Fastest),
+				s => new System.IO.Compression.GZipStream(s, CompressionMode.Decompress)
+            };
+
+            RoundTrip(source, codec, Truncate);
+        }
+
+        private static void RoundTrip(
+		ReadOnlySpan<byte> source,
+		(string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress) codec,
+		Func<ReadOnlyMemory<byte>, IEnumerable<(Stream input, bool? shouldBeOkay)>> peturbations)
+	{
+		byte[] data;
+		using (var compressed = new MemoryStream())
+		using (var gzip = codec.compress(compressed))
+		{
+			foreach (var b in source)
+			{
+				gzip.WriteByte(b);
+			}
+			gzip.Dispose();
+			data = compressed.ToArray();
+		}
+
+		var expected = new StringBuilder("Expected: ");
+		var actual = new StringBuilder("Actual  : ");
+		foreach (var entry in peturbations(data))
+		{
+			if (entry.shouldBeOkay.HasValue)
+			{
+				expected.Append(entry.shouldBeOkay == true ? "/" : "x");
+			}
+			else
+			{
+				expected.Append("?");
+			}
+			try
+			{
+				using (var input = entry.input)
+				using (var gzip = codec.decompress(input))
+				using (var roundtrip = new MemoryStream())
+				{
+					gzip.CopyTo(roundtrip);
+					var result = roundtrip.ToArray();
+				}
+				actual.Append("/");
+			}
+			catch (Exception e)
+			{
+				actual.Append("x");
+			}
+		}
+		Console.WriteLine(expected.ToString());
+		Console.WriteLine(actual.ToString());
+	}
+    
         private sealed class DerivedGZipStream : GZipStream
         {
             public bool ReadArrayInvoked = false, WriteArrayInvoked = false;
