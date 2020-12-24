@@ -281,69 +281,124 @@ namespace System.IO.Compression
             }
         }
 
-        [Fact]
-        public void StrictValidation()
-        {
-            var source = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
-            var codec = new (string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress)
-            {
-                "System.IO.Compression",
-				s => new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionLevel.Fastest),
-				s => new System.IO.Compression.GZipStream(s, CompressionMode.Decompress)
-            };
+       [Fact]
+       public void StrictValidation()
+       {
+           var source = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
+           var codec = new (string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress)[]
+           {
+               (
+                    "System.IO.Compression",
+                    s => new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionLevel.Fastest),
+                    s => new System.IO.Compression.GZipStream(s, CompressionMode.Decompress)
+               )
+           };
 
-            RoundTrip(source, codec, Truncate);
-        }
+           RoundTrip(source, codec[0], Truncate);
+       }
 
-        private static void RoundTrip(
+       private static void RoundTrip(
 		ReadOnlySpan<byte> source,
 		(string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress) codec,
 		Func<ReadOnlyMemory<byte>, IEnumerable<(Stream input, bool? shouldBeOkay)>> peturbations)
-	{
-		byte[] data;
-		using (var compressed = new MemoryStream())
-		using (var gzip = codec.compress(compressed))
-		{
-			foreach (var b in source)
-			{
-				gzip.WriteByte(b);
-			}
-			gzip.Dispose();
-			data = compressed.ToArray();
-		}
+	    {
+            byte[] data;
+            using (var compressed = new MemoryStream())
+            using (var gzip = codec.compress(compressed))
+            {
+                foreach (var b in source)
+                {
+                    gzip.WriteByte(b);
+                }
+                gzip.Dispose();
+                data = compressed.ToArray();
+            }
 
-		var expected = new StringBuilder("Expected: ");
-		var actual = new StringBuilder("Actual  : ");
-		foreach (var entry in peturbations(data))
+            var expected = new StringBuilder("Expected: ");
+            var actual = new StringBuilder("Actual  : ");
+            foreach (var entry in peturbations(data))
+            {
+                if (entry.shouldBeOkay.HasValue)
+                {
+                    expected.Append(entry.shouldBeOkay == true ? "/" : "x");
+                }
+                else
+                {
+                    expected.Append("?");
+                }
+                try
+                {
+                    using (var input = entry.input)
+                    using (var gzip = codec.decompress(input))
+                    using (var roundtrip = new MemoryStream())
+                    {
+                        gzip.CopyTo(roundtrip);
+                        var result = roundtrip.ToArray();
+                    }
+                    actual.Append("/");
+                }
+                catch (Exception)
+                {
+                    actual.Append("x");
+                }
+            }
+            Console.WriteLine(expected.ToString());
+            Console.WriteLine(actual.ToString());
+	    }
+
+        private static IEnumerable<(Stream, bool? shouldBeLegal)> Truncate(ReadOnlyMemory<byte> source)
+        {
+            var data = source.ToArray();
+            for (int i = 0; i < data.Length; i++)
+            {
+                yield return (
+                    new MemoryStream(data, 0, i, writable: false),
+                    CanByteBeManipulatedSafely(data.Length, i, truncated: true));
+            }
+        }
+
+        private static bool? CanByteBeManipulatedSafely(int length, int index, bool truncated)
+	{
+		// https://tools.ietf.org/html/rfc1952.html#section-2.2
+		switch (index)
 		{
-			if (entry.shouldBeOkay.HasValue)
-			{
-				expected.Append(entry.shouldBeOkay == true ? "/" : "x");
-			}
-			else
-			{
-				expected.Append("?");
-			}
-			try
-			{
-				using (var input = entry.input)
-				using (var gzip = codec.decompress(input))
-				using (var roundtrip = new MemoryStream())
+			case 0: // ID1
+			case 1: // ID2
+			case 2: // CM (always gzip)
+				return false;
+			//FLG some flags values may be illegal but ignoring for now
+			case 3:
+				return truncated ? false : (bool?)null;
+			// MTIME
+			case 4:
+			case 5:
+			case 6:
+			case 7:
+				return truncated ? false : true;
+			//XFL some flags values may be illegal but ignoring for now
+			case 8:
+				return truncated ? false : (bool?)null;
+			// OS
+			case 9:
+				return truncated ? false : (bool?)null;
+			default:
+				// footer
+				if (length > 18 && index > length - 4)
 				{
-					gzip.CopyTo(roundtrip);
-					var result = roundtrip.ToArray();
+					// isize - should be validated
+					return false;
 				}
-				actual.Append("/");
-			}
-			catch (Exception e)
-			{
-				actual.Append("x");
-			}
+				else if (length > 18 && index > length - 8)
+				{
+					// CRC32 - should be validated - technically certain manipulations could be undetected
+					return false;
+				}
+				// depending on flags/xflags there may be header entries in here that are mutable
+				// however if FLG.FHCRC was set thyen they aren't, so just assum none can be changed
+				return false;
 		}
-		Console.WriteLine(expected.ToString());
-		Console.WriteLine(actual.ToString());
 	}
-    
+
         private sealed class DerivedGZipStream : GZipStream
         {
             public bool ReadArrayInvoked = false, WriteArrayInvoked = false;
