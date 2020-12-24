@@ -2,6 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -285,21 +288,20 @@ namespace System.IO.Compression
        public void StrictValidation()
        {
            var source = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
-           var codec = new (string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress)[]
+           var codec = new (Func<Stream, Stream> compress, Func<Stream, Stream> decompress)[]
            {
                (
-                    "System.IO.Compression",
                     s => new System.IO.Compression.GZipStream(s, System.IO.Compression.CompressionLevel.Fastest),
                     s => new System.IO.Compression.GZipStream(s, CompressionMode.Decompress)
                )
            };
 
-           RoundTrip(source, codec[0], Truncate);
+           Assert.Equal("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", RoundTrip(source, codec[0], Truncate));
        }
 
-       private static void RoundTrip(
+       private static string RoundTrip(
 		ReadOnlySpan<byte> source,
-		(string name, Func<Stream, Stream> compress, Func<Stream, Stream> decompress) codec,
+		(Func<Stream, Stream> compress, Func<Stream, Stream> decompress) codec,
 		Func<ReadOnlyMemory<byte>, IEnumerable<(Stream input, bool? shouldBeOkay)>> peturbations)
 	    {
             byte[] data;
@@ -314,18 +316,9 @@ namespace System.IO.Compression
                 data = compressed.ToArray();
             }
 
-            var expected = new StringBuilder("Expected: ");
-            var actual = new StringBuilder("Actual  : ");
+            var actual = new StringBuilder();
             foreach (var entry in peturbations(data))
             {
-                if (entry.shouldBeOkay.HasValue)
-                {
-                    expected.Append(entry.shouldBeOkay == true ? "/" : "x");
-                }
-                else
-                {
-                    expected.Append("?");
-                }
                 try
                 {
                     using (var input = entry.input)
@@ -342,8 +335,8 @@ namespace System.IO.Compression
                     actual.Append("x");
                 }
             }
-            Console.WriteLine(expected.ToString());
-            Console.WriteLine(actual.ToString());
+            
+            return actual.ToString();
 	    }
 
         private static IEnumerable<(Stream, bool? shouldBeLegal)> Truncate(ReadOnlyMemory<byte> source)
