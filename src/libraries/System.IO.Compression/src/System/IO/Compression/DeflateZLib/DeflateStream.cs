@@ -49,7 +49,7 @@ namespace System.IO.Compression
         /// Internal constructor to check stream validity and call the correct initialization function depending on
         /// the value of the CompressionMode given.
         /// </summary>
-        internal DeflateStream(Stream stream, CompressionMode mode, bool leaveOpen, int windowBits, long uncompressedSize = -1)
+        internal DeflateStream(Stream stream, CompressionMode mode, bool leaveOpen, int windowBits, long uncompressedSize = -1, bool strictValidation = false)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
@@ -60,7 +60,7 @@ namespace System.IO.Compression
                     if (!stream.CanRead)
                         throw new ArgumentException(SR.NotSupported_UnreadableStream, nameof(stream));
 
-                    _inflater = new Inflater(windowBits, uncompressedSize);
+                    _inflater = new Inflater(windowBits, uncompressedSize, strictValidation);
                     _stream = stream;
                     _mode = CompressionMode.Decompress;
                     _leaveOpen = leaveOpen;
@@ -266,6 +266,10 @@ namespace System.IO.Compression
             while (true)
             {
                 int bytesRead = _inflater.Inflate(buffer.Slice(totalRead));
+                if (bytesRead == -1)
+                {
+                    throw new InvalidDataException(SR.GenericInvalidData);
+                }
                 totalRead += bytesRead;
                 if (totalRead == buffer.Length)
                 {

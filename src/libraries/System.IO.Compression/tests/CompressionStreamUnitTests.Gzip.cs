@@ -305,14 +305,14 @@ namespace System.IO.Compression
             int corruptBytesDetected = 0;
 
             // corrupt data byte by byte
-            for (var byteToCorrupt = 0; byteToCorrupt < cmpData.Length; byteToCorrupt++)
+            for (var byteToCorrupt = 10; byteToCorrupt < cmpData.Length; byteToCorrupt++)
             {
                 // corrupt the data
                 cmpData[byteToCorrupt]++;
 
                 using (var decomStream = new MemoryStream(cmpData))
                 {
-                    using (var hgs = new GZipStream(decomStream, CompressionMode.Decompress))
+                    using (var hgs = new GZipStream(decomStream, CompressionMode.Decompress, false, strictValidation: true))
                     {
                         using (var reader = new StreamReader(hgs))
                         {
