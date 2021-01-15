@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
+using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -64,7 +66,7 @@ namespace System.IO.Compression
             ArrayPool<byte>.Shared.Return(rentedBuffer);
 
             // use 3 buffers-full so that we can prime the stream with the first buffer-full,
-            // test that CopyTo successfully flushes this at the beginning of the operation, 
+            // test that CopyTo successfully flushes this at the beginning of the operation,
             // then populates the second buffer-full and reads its entirety despite every
             // payload being 0 length before it reads the final buffer-full.
             int minCompressedSize = 3 * actualBufferSize;
@@ -167,9 +169,9 @@ namespace System.IO.Compression
             bool isCopy = scenario == TestScenario.Copy || scenario == TestScenario.CopyAsync;
 
             using (MemoryStream correctDecompressedOutput = new MemoryStream())
-            // For copy scenarios use a derived MemoryStream to avoid MemoryStream's Copy optimization 
+            // For copy scenarios use a derived MemoryStream to avoid MemoryStream's Copy optimization
             // that turns the Copy into a single Write passing the backing buffer
-            using (MemoryStream compressedStream = isCopy ? new DerivedMemoryStream() : new MemoryStream())  
+            using (MemoryStream compressedStream = isCopy ? new DerivedMemoryStream() : new MemoryStream())
             using (MemoryStream decompressorOutput = new MemoryStream())
             {
                 for (int i = 0; i < streamCount; i++)
@@ -279,6 +281,75 @@ namespace System.IO.Compression
                 compressor.WriteAsync(new ReadOnlyMemory<byte>(new byte[1])).AsTask().Wait();
                 Assert.True(compressor.WriteArrayInvoked);
             }
+        }
+
+        [Fact]
+        public void StrictValidation()
+        {
+            const string sample = "This is a compression test of microsoft .net gzip compression method and decompression methods";
+            var encoding = new ASCIIEncoding();
+            var data = encoding.GetBytes(sample);
+            byte[] cmpData;
+
+            // Compress
+            using (var cmpStream = new MemoryStream())
+            {
+                using (var hgs = new GZipStream(cmpStream, CompressionMode.Compress))
+                {
+                    hgs.Write(data, 0, data.Length);
+                }
+                cmpData = cmpStream.ToArray();
+            }
+
+            int corruptBytesNotDetected = 0;
+            int corruptBytesDetected = 0;
+
+            // corrupt data byte by byte
+            for (var byteToCorrupt = 0; byteToCorrupt < cmpData.Length; byteToCorrupt++)
+            {
+                // corrupt the data
+                cmpData[byteToCorrupt]++;
+
+                using (var decomStream = new MemoryStream(cmpData))
+                {
+                    using (var hgs = new GZipStream(decomStream, CompressionMode.Decompress))
+                    {
+                        using (var reader = new StreamReader(hgs))
+                        {
+                            try
+                            {
+                                string sampleOut = reader.ReadToEnd();
+
+                                // if we get here, the corrupt data was not detected by GZipStream
+                                // ... okay so long as the correct data is extracted
+                                corruptBytesNotDetected++;
+
+                                var message = string.Format("ByteCorrupted = {0}, CorruptBytesNotDetected = {1}",
+                                   byteToCorrupt, corruptBytesNotDetected);
+
+                                Debug.WriteLine(message);
+                                //Assert.IsNotNull(sampleOut, message);
+                                //Assert.AreEqual(sample, sampleOut, message);
+                            }
+                            catch (InvalidDataException ex)
+                            {
+                                corruptBytesDetected++;
+                                Debug.WriteLine(ex.Message);
+                                // data was corrupted, so we expect to get here
+                            }
+                        }
+                    }
+                }
+
+                // restore the data
+                cmpData[byteToCorrupt]--;
+            }
+
+            Debug.WriteLine($"{nameof(corruptBytesDetected)}: {corruptBytesDetected}");
+            Debug.WriteLine($"{nameof(corruptBytesNotDetected)}: {corruptBytesNotDetected}");
+
+            // corruptBytesDetected: 75
+            // corruptBytesNotDetected: 9
         }
 
         private sealed class DerivedGZipStream : GZipStream
