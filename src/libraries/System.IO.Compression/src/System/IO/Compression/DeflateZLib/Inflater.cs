@@ -119,7 +119,8 @@ namespace System.IO.Compression
 
         private unsafe void ReadOutput(byte* bufPtr, int length, out int bytesRead)
         {
-            if (ReadInflateOutput(bufPtr, length, ZLibNative.FlushCode.NoFlush, out bytesRead) == ZLibNative.ErrorCode.StreamEnd)
+            var result = ReadInflateOutput(bufPtr, length, ZLibNative.FlushCode.NoFlush, out bytesRead);
+            if (result == ZLibNative.ErrorCode.StreamEnd)
             {
                 if (!NeedsInput() && IsGzipStream() && _inputBufferHandle.IsAllocated)
                 {
@@ -129,6 +130,10 @@ namespace System.IO.Compression
                 {
                     _finished = true;
                 }
+            }
+            else if (result == ZLibNative.ErrorCode.BufError)
+            {
+                // This is hit in half of the current unit test
             }
         }
 
